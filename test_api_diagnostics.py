@@ -1,4 +1,4 @@
-# test_api_diagnostic.py - Better diagnostic testing
+# test_api_diagnostic.py - Complete diagnostic testing script
 import requests
 import time
 import threading
@@ -252,7 +252,8 @@ def test_basic_connectivity():
             print("\n⚡ You can now:")
             print("   1. Visit the API docs in your browser")
             print("   2. Test endpoints manually")
-            print("   3. Run the full test suite")
+            print("   3. Run the authentication test: python test_auth.py")
+            print("   4. Run the full test suite")
             print("\nPress Ctrl+C to stop the server")
             
             try:
@@ -277,6 +278,107 @@ def test_basic_connectivity():
         os.chdir(original_dir)
         server_manager.stop_server()
 
+def run_comprehensive_test():
+    """Run comprehensive API test"""
+    print("🧪 Running Comprehensive API Test")
+    print("=" * 50)
+    
+    # Find free port for testing
+    port = find_free_port()
+    api_base = f"http://localhost:{port}"
+    
+    print(f"🌐 Testing API at: {api_base}")
+    
+    try:
+        # Wait for server to be ready
+        if not check_server_ready(api_base, max_attempts=30, verbose=False):
+            print("❌ Server not ready for comprehensive test")
+            return False
+        
+        print("✅ Server is ready for comprehensive testing")
+        
+        # Test authentication flow
+        print("\n🔐 Testing Authentication...")
+        
+        test_user = {
+            "email": "comprehensive@test.com",
+            "name": "Comprehensive Test User",
+            "password": "testpassword123"
+        }
+        
+        # Register user
+        response = requests.post(f"{api_base}/api/auth/register", json=test_user, timeout=10)
+        
+        if response.status_code == 200:
+            print("✅ User registration: PASSED")
+            token_data = response.json()
+            access_token = token_data.get("access_token")
+        elif response.status_code == 400:
+            # Try login
+            response = requests.post(f"{api_base}/api/auth/login", json={
+                "email": test_user["email"],
+                "password": test_user["password"]
+            }, timeout=10)
+            
+            if response.status_code == 200:
+                print("✅ User login: PASSED")
+                token_data = response.json()
+                access_token = token_data.get("access_token")
+            else:
+                print(f"❌ Authentication failed: {response.status_code}")
+                return False
+        else:
+            print(f"❌ Registration failed: {response.status_code}")
+            print(f"   Error: {response.text}")
+            return False
+        
+        if not access_token:
+            print("❌ No access token received")
+            return False
+        
+        print(f"🎟️ Access token received: {access_token[:20]}...")
+        
+        # Test protected endpoints
+        headers = {"Authorization": f"Bearer {access_token}"}
+        
+        protected_endpoints = [
+            ("auth/me", "Current User"),
+            ("users/stats", "User Statistics"),
+            ("profiles/", "User Profiles"),
+            ("applications/", "Applications"),
+            ("batches/", "Batches"),
+            ("bot/status", "Bot Status")
+        ]
+        
+        passed_protected = 0
+        for endpoint, name in protected_endpoints:
+            try:
+                response = requests.get(f"{api_base}/api/{endpoint}", headers=headers, timeout=5)
+                if response.status_code == 200:
+                    print(f"✅ {name}: PASSED")
+                    passed_protected += 1
+                else:
+                    print(f"❌ {name}: FAILED ({response.status_code})")
+            except Exception as e:
+                print(f"❌ {name}: ERROR ({e})")
+        
+        # Final results
+        total_protected = len(protected_endpoints)
+        protected_success_rate = (passed_protected / total_protected) * 100
+        
+        print(f"\n📊 Protected Endpoints: {passed_protected}/{total_protected} passed ({protected_success_rate:.1f}%)")
+        
+        if protected_success_rate >= 80:
+            print("🎉 Comprehensive test PASSED!")
+            return True
+        else:
+            print("⚠️ Comprehensive test had issues")
+            return False
+        
+    except Exception as e:
+        print(f"❌ Comprehensive test failed: {e}")
+        return False
+
 def main():
     """Main diagnostic test"""
     print("🔍 IntelliApply API Diagnostic Test")
@@ -294,6 +396,7 @@ def main():
         print("   2. Verify your .env file has correct database credentials")
         print("   3. Make sure no other services are using the ports")
         print("   4. Check the server logs above for specific errors")
+        print("   5. Try running: cd backend && python -m uvicorn main:app --reload")
 
 if __name__ == "__main__":
     main()

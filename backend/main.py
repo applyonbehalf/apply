@@ -1,4 +1,4 @@
-# main.py - Updated FastAPI app with bot endpoints
+# main.py - Updated with admin router
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -24,20 +24,28 @@ app.add_middleware(
 try:
     from api import auth, users, profiles, applications, batches, captcha, bot
     
-    # Include API routers
+    # Include existing API routers
     app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
     app.include_router(users.router, prefix="/api/users", tags=["users"])
     app.include_router(profiles.router, prefix="/api/profiles", tags=["profiles"])
     app.include_router(applications.router, prefix="/api/applications", tags=["applications"])
     app.include_router(batches.router, prefix="/api/batches", tags=["batches"])
     app.include_router(captcha.router, prefix="/api/captcha", tags=["captcha"])
-    app.include_router(bot.router, prefix="/api/bot", tags=["bot-control"])  # New bot endpoints
+    app.include_router(bot.router, prefix="/api/bot", tags=["bot-control"])
     
-    print("✅ All API routers loaded successfully")
+    print("✅ All core API routers loaded successfully")
     
 except ImportError as e:
-    print(f"⚠️ Warning: Could not import API routers: {e}")
-    print("API endpoints will not be available")
+    print(f"⚠️ Warning: Could not import core API routers: {e}")
+
+# Try to import admin router (new feature)
+try:
+    from api import admin
+    app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+    print("✅ Admin API router loaded successfully")
+except ImportError as e:
+    print(f"⚠️ Warning: Admin API not available: {e}")
+    print("   This is normal if you haven't created the admin.py file yet")
 
 # Health check endpoint
 @app.get("/health")
@@ -48,32 +56,18 @@ async def health_check():
 @app.get("/")
 async def root():
     return {
-        "message": "Welcome to IntelliApply API v7.0",
+        "message": "Welcome to IntelliApply API v8.0",
         "version": "1.0.0",
         "features": [
             "Multi-user job applications",
             "AI-powered form filling", 
             "CAPTCHA handling",
             "Real-time processing",
-            "Application queue management"
+            "Application queue management",
+            "Admin job URL management"  # New feature
         ],
         "docs": "/docs"
     }
-
-# Bot status endpoint (quick check)
-@app.get("/bot-status")
-async def quick_bot_status():
-    """Quick bot status check (no auth required)"""
-    try:
-        from services.bot_service import bot_service
-        status = await bot_service.get_bot_status()
-        return {
-            "running": status.get('running', False),
-            "active_applications": status.get('stats', {}).get('applications_processed', 0),
-            "success_rate": status.get('stats', {}).get('success_rate', 0)
-        }
-    except Exception as e:
-        return {"running": False, "error": "Unable to get status"}
 
 # Global exception handler
 @app.exception_handler(Exception)
