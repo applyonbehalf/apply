@@ -1,0 +1,192 @@
+{
+  "personal_info": {
+    "legal_first_name": "Shubham",
+    "legal_middle_name": "",
+    "fullname": "shubham mane",
+    "full_name": "shubham mane",
+    "legal_last_name": "Mane",
+    "preferred_name": "Shubham",
+    "email": "shubhammane56@gmail.com",
+    "phone": "312-539-9755",
+    "location": "Chicago, IL",
+    "date_of_birth": "1996-05-06",
+    "address_line_1": "215 e seegers rd",
+    "address_line_2": "Apt 56",
+    "city": "Chicago",
+    "state_province": "IL",
+    "zip_postal_code": "60005",
+    "country": "USA",
+    "linkedin_url": "https://www.linkedin.com/in/shubhm-mane",
+    "github_url": "",
+    "portfolio_url": "",
+    "personal_website": ""
+  },
+  "document_paths": {
+    "resume": "/Users/shubhammane/Desktop/IntelliApply_Bot/shubham_mane.pdf",
+    "cover_letter": "NA"
+  },
+  "eligibility": {
+    "are_you_legally_authorized_to_work": "Yes",
+    "will_you_require_sponsorship": "No",
+    "has_visa_status_ever_changed": "No",
+    "current_visa_status": "H1B",
+    "can_provide_proof_of_eligibility": "Yes",
+    "is_us_citizen": "No"
+  },
+  "demographics": {
+    "gender": "Prefer not to say",
+    "race_ethnicity": "Asian",
+    "hispanic_or_latino": "No",
+    "veteran_status": "No",
+    "disability_status": "No",
+    "disability_type_if_applicable": ""
+  },
+  "experience": {
+    "total_years_professional_experience": "8",
+    "total_years_relevant_experience": "8",
+    "has_management_experience": "Yes",
+    "years_management_experience": "2",
+    "reason_for_leaving_last_job": "Career advancement",
+    "describe_gap_in_employment": "No significant gaps",
+    "salary_expectation": "$120,000/year",
+    "desired_salary": "$120,000/year",
+    "current_or_most_recent_salary": "$110,000/year"
+  },
+  "preferences": {
+    "desired_job_title": "Senior Security Analyst",
+    "preferred_work_location": "Remote or Chicago, IL",
+    "willing_to_relocate": "Yes",
+    "willing_to_travel_percentage": "25%",
+    "employment_type_preference": "Full-time",
+    "ideal_start_date": "07/01/2025",
+    "how_did_you_hear_about_us": "LinkedIn",
+    "have_you_applied_before": "No",
+    "name_of_employee_referral": ""
+  },
+  "skills": {
+    "primary_programming_languages": [
+      "Python",
+      "Java"
+    ],
+    "secondary_programming_languages": [
+      "PowerShell",
+      "C++"
+    ],
+    "frameworks_and_libraries": [
+      "Scikit-learn",
+      "TensorFlow"
+    ],
+    "database_technologies": [
+      "MySQL",
+      "PostgreSQL"
+    ],
+    "cloud_platforms": [
+      "AWS",
+      "Azure"
+    ],
+    "years_with_python": "6",
+    "years_with_java": "4",
+    "years_with_react": "0",
+    "certifications_list": [
+      "Certified Ethical Hacker (CEH)",
+      "AWS Solutions Architect \u2013 Associate",
+      "CompTIA Security+"
+    ],
+    "language_proficiencies": "English: Fluent, Hindi: Fluent"
+  },
+  "background": {
+    "have_you_ever_been_convicted_of_a_felony": "No",
+    "felony_explanation_if_yes": "",
+    "are_you_subject_to_non_compete": "No",
+    "can_you_perform_essential_job_functions": "Yes",
+    "drug_test_consent": "Yes",
+    "background_check_consent": "Yes"
+  },
+  "essays": {
+    "tell_me_about_yourself": "I am a Senior Security Analyst with over 8 years of experience...",
+    "why_are_you_interested_in_this_role": "Because it aligns with my passion for threat detection...",
+    "why_do_you_want_to_work_for_this_company": "The company values innovation and security...",
+    "what_are_your_strengths": "Analytical thinking, threat hunting, automation",
+    "what_are_your_weaknesses": "Sometimes too detail-oriented",
+    "describe_a_challenging_project": "Led a zero-day vulnerability response with minimal downtime...",
+    "how_do_you_handle_pressure": "I stay calm and follow a structured incident response plan.",
+    "where_do_you_see_yourself_in_5_years": "Leading a global cybersecurity operations center",
+    "what_makes_you_a_good_fit_for_our_team": "Strong collaboration skills and deep security expertise",
+    "cover_letter_summary": "I am excited to apply for this role and bring my 8+ years..."
+  },
+  "education": [
+    {
+      "degree_level": "Master's",
+      "degree_name": "Master of Science in Cybersecurity",
+      "major": "Cybersecurity",
+      "university": "DePaul University",
+      "city": "Chicago",
+      "state": "IL",
+      "country": "USA",
+      "start_date": "08/2019",
+      "end_date": "06/2021",
+      "graduated": "Yes",
+      "gpa": "3.8"
+    },
+    {
+      "degree_level": "Bachelor's",
+      "degree_name": "Bachelor of Engineering",
+      "major": "Computer Science",
+      "university": "Dr. D.Y. Patil Institute of Technology",
+      "city": "Pune",
+      "state": "MH",
+      "country": "India",
+      "start_date": "07/2013",
+      "end_date": "06/2017",
+      "graduated": "Yes",
+      "gpa": ""
+    }
+  ],
+  "employment_history": [
+    {
+      "job_title": "Senior Security Specialist",
+      "company": "Verizon",
+      "city": "Chicago",
+      "state": "IL",
+      "country": "USA",
+      "start_date": "06/2022",
+      "end_date": "Present",
+      "currently_working": true,
+      "reason_for_leaving": ""
+    },
+    {
+      "job_title": "Cyber Security Analyst",
+      "company": "AT&T",
+      "city": "Pittsburgh",
+      "state": "PA",
+      "country": "USA",
+      "start_date": "10/2021",
+      "end_date": "06/2022",
+      "currently_working": false,
+      "reason_for_leaving": "Career advancement"
+    },
+    {
+      "job_title": "Information Security Engineer",
+      "company": "Infosys",
+      "city": "Pune",
+      "state": "MH",
+      "country": "India",
+      "start_date": "06/2018",
+      "end_date": "08/2021",
+      "currently_working": false,
+      "reason_for_leaving": "Relocated to US for education"
+    }
+  ],
+  "ai_config": {
+    "auto_fill_variants": true,
+    "case_sensitive_field_mapping": false,
+    "retry_on_required_field_error": true,
+    "retry_limit_per_field": 2,
+    "combine_fields": {
+      "full_name": [
+        "legal_first_name",
+        "legal_last_name"
+      ]
+    }
+  }
+}

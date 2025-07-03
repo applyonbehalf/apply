@@ -1,0 +1,24 @@
+{
+    "field_mappings": {
+        "fullName": "personal_info.fullname",
+        "email": "personal_info.email",
+        "phone": "personal_info.phone",
+        "dob": "personal_info.date_of_birth",
+        "felonyExplain": "background.felony_explanation_if_yes",
+        "startDate": "preferences.ideal_start_date",
+        "languages": "skills.primary_programming_languages",
+        "resume": "document_paths.resume",
+        "cover": "document_paths.cover_letter",
+        "First Name": "personal_info.legal_first_name",
+        "Last Name": "personal_info.legal_last_name",
+        "Email Address": "personal_info.email",
+        "Phone": "personal_info.phone",
+        "Address": "personal_info.address_line_1",
+        "City": "personal_info.city",
+        "State/Province": "personal_info.state_province",
+        "Postal": "personal_info.zip_postal_code",
+        "Please provide your salary requirements as a numeric range.": "experience.salary_expectation",
+        "Resume": "document_paths.resume"
+    },
+    "choice_mappings": {}
+}

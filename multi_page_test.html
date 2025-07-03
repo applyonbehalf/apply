@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Advanced USA Job Application Form</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    .form-page { display: none; }
+    .form-page.active { display: block; }
+    .required:after { content: " *"; color: red; }
+    label { display: block; margin-top: 10px; }
+    input, select, textarea { width: 300px; margin-top: 5px; }
+    .navigation-buttons { margin-top: 20px; }
+    #review { white-space: pre-line; background-color: #f2f2f2; padding: 20px; margin-top: 20px; display: none; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+
+<h1>Complex Job Application Questionnaire</h1>
+<form id="jobApplicationForm">
+
+  <!-- Page 1 -->
+  <div class="form-page active" id="page-1">
+    <label class="required">Full Name</label>
+    <input type="text" name="fullName" required>
+
+    <label class="required">Email Address</label>
+    <input type="email" name="email" required>
+
+    <label class="required">Phone Number</label>
+    <input type="tel" name="phone" required>
+
+    <label class="required">Date of Birth</label>
+    <input type="date" name="dob" required>
+
+    <label class="required">Highest Qualification</label>
+    <select name="qualification" required>
+      <option value="">-- Select --</option>
+      <option value="High School">High School</option>
+      <option value="Bachelor's">Bachelor's</option>
+      <option value="Master's">Master's</option>
+      <option value="PhD">PhD</option>
+    </select>
+
+    <label class="required">Are you legally authorized to work in the U.S.?</label>
+    <input type="radio" name="workAuth" value="Yes" required> Yes
+    <input type="radio" name="workAuth" value="No"> No
+  </div>
+
+  <!-- Page 2 -->
+  <div class="form-page" id="page-2">
+    <label class="required">Do you now, or will you in the future, require visa sponsorship?</label>
+    <input type="radio" name="visaSponsorship" value="Yes" required> Yes
+    <input type="radio" name="visaSponsorship" value="No"> No
+
+    <label class="required">Have you ever been convicted of a felony?</label>
+    <input type="radio" name="felony" value="Yes" required> Yes
+    <input type="radio" name="felony" value="No"> No
+
+    <label>If yes, please explain:</label>
+    <textarea name="felonyExplain"></textarea>
+
+    <label>Available Start Date</label>
+    <input type="date" name="startDate">
+
+    <label>Preferred Job Location(s)</label>
+    <input type="checkbox" name="locations" value="New York"> New York
+    <input type="checkbox" name="locations" value="California"> California
+    <input type="checkbox" name="locations" value="Texas"> Texas
+    <input type="checkbox" name="locations" value="Remote"> Remote
+  </div>
+
+  <!-- Page 3 -->
+  <div class="form-page" id="page-3">
+    <label class="required">List all programming languages you know</label>
+    <input type="text" name="languages" required>
+
+    <label>Rate your Python skills</label>
+    <select name="pythonSkill">
+      <option value="Beginner">Beginner</option>
+      <option value="Intermediate">Intermediate</option>
+      <option value="Advanced">Advanced</option>
+    </select>
+
+    <label class="required">Upload Resume</label>
+    <input type="file" name="resume" required>
+
+    <label>Upload Cover Letter (Optional)</label>
+    <input type="file" name="cover">
+  </div>
+
+  <!-- Page 4 -->
+  <div class="form-page" id="page-4">
+    <label class="required">
+      <input type="checkbox" name="agree" required>
+      I certify that the information provided is true and accurate
+    </label>
+    <button type="submit">Submit Application</button>
+  </div>
+
+  <div class="navigation-buttons">
+    <button type="button" id="prevBtn" onclick="nextPrev(-1)">Previous</button>
+    <button type="button" id="nextBtn" onclick="nextPrev(1)">Next</button>
+  </div>
+</form>
+
+<!-- Review Section -->
+<div id="review"></div>
+
+<script>
+  let currentPage = 0;
+  const pages = document.querySelectorAll('.form-page');
+  showPage(currentPage);
+
+  function showPage(n) {
+    pages.forEach((p, i) => p.classList.remove('active'));
+    pages[n].classList.add('active');
+    document.getElementById("prevBtn").style.display = n === 0 ? "none" : "inline";
+    document.getElementById("nextBtn").style.display = n === (pages.length - 1) ? "none" : "inline";
+  }
+
+  function nextPrev(n) {
+    if (n === 1 && !validateForm()) return;
+    currentPage += n;
+    if (currentPage >= pages.length) return;
+    showPage(currentPage);
+  }
+
+  function validateForm() {
+    const currentInputs = pages[currentPage].querySelectorAll("input, select, textarea");
+    for (let input of currentInputs) {
+      if (input.hasAttribute("required") && !input.value && input.type !== 'checkbox') {
+        alert("Please fill all required fields.");
+        input.focus();
+        return false;
+      }
+      if (input.type === 'checkbox' && input.hasAttribute("required") && !input.checked) {
+        alert("Please accept the terms.");
+        return false;
+      }
+    }
+    return true;
+  }
+
+  document.getElementById('jobApplicationForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    let output = '--- Submitted Answers ---\n';
+    for (const [key, value] of formData.entries()) {
+      output += `${key}: ${value}\n`;
+    }
+
+    // Display answers
+    document.getElementById('review').innerText = output;
+    document.getElementById('review').style.display = 'block';
+
+    // Download as file
+    const blob = new Blob([output], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'application_answers.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+
+    alert("Application submitted! Your answers have been saved as a downloadable file.");
+  });
+</script>
+
+</body>
+</html>
