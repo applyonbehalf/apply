@@ -1,4 +1,35 @@
-# database/connection.py - Complete version with all methods
+# fix_database_completely.py - Complete fix for database connection
+import os
+import shutil
+
+def backup_and_fix_database():
+    """Backup and fix the database connection file"""
+    
+    db_file = "backend/database/connection.py"
+    backup_file = "backend/database/connection.py.backup"
+    
+    print("🔧 Fixing Database Connection")
+    print("=" * 40)
+    
+    if not os.path.exists(db_file):
+        print(f"❌ File not found: {db_file}")
+        return False
+    
+    # Create backup
+    shutil.copy2(db_file, backup_file)
+    print(f"📁 Backup created: {backup_file}")
+    
+    # Read current content
+    with open(db_file, 'r') as f:
+        content = f.read()
+    
+    # Check if already fixed
+    if "get_applications_by_status" in content and "create_notification" in content:
+        print("✅ Database methods already exist")
+        return True
+    
+    # New complete database connection with all missing methods
+    new_content = '''# database/connection.py - Complete version with all methods
 from supabase import create_client, Client
 from config import settings
 import asyncio
@@ -301,4 +332,25 @@ class DatabaseConnection:
         return stats
 
 # Create global database instance
-db = DatabaseConnection()
+db = DatabaseConnection()'''
+    
+    # Write the new content
+    with open(db_file, 'w') as f:
+        f.write(new_content)
+    
+    print(f"✅ Database connection file updated")
+    return True
+
+def main():
+    """Main function"""
+    if backup_and_fix_database():
+        print("\n🎯 Database fixed successfully!")
+        print("\nNext steps:")
+        print("1. Restart your server (Ctrl+C and restart)")
+        print("2. Run: python quick_fix_and_test.py")
+        print("3. The bot should now work properly!")
+    else:
+        print("\n❌ Failed to fix database")
+
+if __name__ == "__main__":
+    main()

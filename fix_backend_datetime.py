@@ -1,4 +1,30 @@
-# api/profiles.py - Fixed version with datetime handling
+# fix_backend_datetime.py - Fix backend datetime serialization
+import os
+import json
+from datetime import datetime
+
+def fix_backend_datetime_issues():
+    """Fix datetime serialization issues in backend"""
+    
+    print("🔧 Fixing Backend DateTime Issues")
+    print("=" * 40)
+    
+    # Fix the profile API endpoint
+    profiles_api_path = "backend/api/profiles.py"
+    
+    if os.path.exists(profiles_api_path):
+        print(f"📁 Fixing {profiles_api_path}")
+        
+        # Read current content
+        with open(profiles_api_path, 'r') as f:
+            content = f.read()
+        
+        # Create backup
+        with open(f"{profiles_api_path}.backup", 'w') as f:
+            f.write(content)
+        
+        # Updated profiles.py with proper datetime handling
+        new_content = '''# api/profiles.py - Fixed version with datetime handling
 from fastapi import APIRouter, Depends, HTTPException, status
 from auth.auth_middleware import get_current_active_user
 from database.models import UserResponse, ProfileCreate, ProfileResponse, ProfileUpdate
@@ -159,3 +185,51 @@ async def delete_profile(
     except Exception as e:
         print(f"Error deleting profile: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete profile: {str(e)}")
+'''
+        
+        # Write the fixed content
+        with open(profiles_api_path, 'w') as f:
+            f.write(new_content)
+        
+        print(f"✅ Fixed {profiles_api_path}")
+    else:
+        print(f"❌ File not found: {profiles_api_path}")
+        return False
+    
+    return True
+
+def test_server_restart():
+    """Test if we need to restart the server"""
+    import requests
+    
+    try:
+        response = requests.get("http://localhost:8003/health", timeout=5)
+        if response.status_code == 200:
+            print("ℹ️ Server is running. You'll need to restart it for changes to take effect.")
+            return True
+    except:
+        print("ℹ️ Server appears to be stopped.")
+        return False
+
+def main():
+    """Main function"""
+    print("🔧 IntelliApply Backend DateTime Fix")
+    print("=" * 50)
+    
+    if fix_backend_datetime_issues():
+        print("\n✅ Backend datetime issues fixed!")
+        
+        if test_server_restart():
+            print("\n⚠️ IMPORTANT: You need to restart the server!")
+            print("\nSteps:")
+            print("1. Press Ctrl+C to stop the current server")
+            print("2. Run: python quick_fix_and_test.py")
+            print("3. The profile creation should now work")
+        else:
+            print("\n🎯 Ready to test!")
+            print("Run: python quick_fix_and_test.py")
+    else:
+        print("\n❌ Failed to fix backend issues")
+
+if __name__ == "__main__":
+    main()
