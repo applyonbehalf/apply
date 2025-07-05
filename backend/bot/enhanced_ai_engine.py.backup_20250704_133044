@@ -33,9 +33,6 @@ class EnhancedAIEngine:
             return cached_result
         
         if not self.model:
-            enhanced_result = self._enhanced_field_mapping(field_label, 'text', profile_data)
-            if enhanced_result:
-                return enhanced_result
             return self._fallback_field_mapping(field_label, profile_data)
         
         try:
@@ -78,9 +75,6 @@ class EnhancedAIEngine:
                 
         except Exception as e:
             print(f"❌ AI field mapping error: {e}")
-            enhanced_result = self._enhanced_field_mapping(field_label, 'text', profile_data)
-            if enhanced_result:
-                return enhanced_result
             return self._fallback_field_mapping(field_label, profile_data)
     
     def _fallback_field_mapping(self, field_label: str, profile_data: Dict[str, Any]) -> Optional[str]:
@@ -117,64 +111,6 @@ class EnhancedAIEngine:
         
         return None
     
-    
-    def _enhanced_field_mapping(self, field_label: str, field_type: str, profile_data):
-        """Enhanced field mapping with comprehensive patterns"""
-        flattened_data = self._flatten_profile_data(profile_data)
-        field_lower = field_label.lower().replace(' ', '').replace('_', '').replace('-', '')
-        
-        # Comprehensive field mappings
-        enhanced_mappings = {
-            'firstname': ['personal_info.legal_first_name', 'personal_info.first_name'],
-            'lastname': ['personal_info.legal_last_name', 'personal_info.last_name'],
-            'fullname': ['personal_info.full_name'],
-            'emailaddress': ['personal_info.email'],
-            'email': ['personal_info.email'],
-            'phone': ['personal_info.phone'],
-            'address': ['personal_info.address_line_1'],
-            'city': ['personal_info.city'],
-            'state': ['personal_info.state_province'],
-            'postal': ['personal_info.zip_postal_code'],
-            'salary': ['experience.salary_expectation'],
-            'workpreference': ['preferences.work_preference'],
-            'experience': ['experience.total_years_professional_experience'],
-            'itexperience': ['experience.it_managed_services_experience'],
-            'securityexperience': ['experience.information_security_experience'],
-            'visa': ['eligibility.visa_sponsorship'],
-            'sponsorship': ['eligibility.visa_sponsorship_required']
-        }
-        
-        # Try pattern matching
-        for pattern, candidates in enhanced_mappings.items():
-            if pattern in field_lower or field_lower in pattern:
-                for candidate in candidates:
-                    if candidate in flattened_data:
-                        return candidate
-        
-        return None
-    
-    def generate_smart_response(self, field_label: str, field_type: str, profile_data):
-        """Generate intelligent responses for unknown fields"""
-        field_lower = field_label.lower()
-        
-        if any(word in field_lower for word in ['salary', 'compensation']):
-            return "$80,000 - $100,000"
-        elif any(word in field_lower for word in ['experience', 'years']):
-            if 'security' in field_lower or 'cyber' in field_lower:
-                return "2-3 years"
-            elif 'it' in field_lower:
-                return "3-5 years"
-            else:
-                return "3+ years"
-        elif any(word in field_lower for word in ['preference', 'remote', 'hybrid']):
-            return "Hybrid"
-        elif any(word in field_lower for word in ['visa', 'sponsorship']):
-            return "No"
-        elif any(word in field_lower for word in ['authorization']):
-            return "Yes"
-        else:
-            return "Experienced cybersecurity professional. Please see resume for details."
-
     def _flatten_profile_data(self, profile_data: Dict[str, Any], prefix: str = '') -> Dict[str, Any]:
         """Flatten nested profile data"""
         flattened = {}

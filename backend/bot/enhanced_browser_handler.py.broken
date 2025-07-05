@@ -1,0 +1,603 @@
+# bot/enhanced_browser_handler.py - Fixed ChromeDriver and CAPTCHA detection
+import time
+import random
+import os
+import uuid
+import asyncio
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from typing import Dict, List, Optional, Any
+from datetime import datetime
+
+class EnhancedBrowserHandler:
+    """Enhanced browser handler with fixed ChromeDriver and CAPTCHA detection"""
+    
+    def __init__(self, user_id: str = None, headless: bool = False):
+        self.user_id = user_id
+        self.headless = headless
+        self.driver = None
+        self.wait = None
+        self.session_id = str(uuid.uuid4())
+        self.current_application_id = None
+        self.current_url = None
+        
+        # Stats tracking
+        self.session_stats = {
+            'applications_processed': 0,
+            'applications_successful': 0,
+            'applications_failed': 0,
+            'captchas_encountered': 0,
+            'session_start': datetime.utcnow()
+        }
+        
+        self._setup_browser()
+    
+    def _setup_browser(self):
+        """Setup browser with working ChromeDriver"""
+        options = webdriver.ChromeOptions()
+        
+        # Headless mode setting
+        if self.headless:
+            options.add_argument("--headless")
+            print(f"🔇 Browser running in headless mode")
+        else:
+            print(f"👁️ Browser running in visible mode")
+        
+        # Anti-detection options
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option('useAutomationExtension', False)
+        
+        # Performance options
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-plugins")
+        
+        # User agent randomization
+        user_agents = [
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        ]
+        options.add_argument(f"--user-agent={random.choice(user_agents)}")
+        
+        try:
+            # Try different ChromeDriver paths (based on our successful test)
+            driver_paths = [
+                '/usr/local/bin/chromedriver',  # Homebrew default
+                '/opt/homebrew/bin/chromedriver',  # M1 Homebrew
+                'chromedriver'  # System PATH
+            ]
+            
+            driver_created = False
+            for driver_path in driver_paths:
+                try:
+                    if driver_path == 'chromedriver':
+                        service = ChromeService()  # Let it find in PATH
+                    else:
+                        if os.path.exists(driver_path):
+                            service = ChromeService(executable_path=driver_path)
+                        else:
+                            continue
+                    
+                    self.driver = webdriver.Chrome(service=service, options=options)
+                    print(f"✅ ChromeDriver loaded from: {driver_path}")
+                    driver_created = True
+                    break
+                    
+                except Exception as e:
+                    print(f"⚠️ Failed with {driver_path}: {e}")
+                    continue
+            
+            if not driver_created:
+                raise Exception("No working ChromeDriver found")
+            
+            # Anti-detection script
+            self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            
+            # Set window size
+            if not self.headless:
+                self.driver.maximize_window()
+            else:
+                self.driver.set_window_size(1920, 1080)
+            
+            self.wait = WebDriverWait(self.driver, 15)
+            print(f"✅ Browser initialized for session {self.session_id[:8]}")
+            
+        except Exception as e:
+            print(f"❌ Error initializing browser: {e}")
+            raise
+    
+    async def navigate_to_job(self, job_url: str, application_id: str) -> bool:
+        """Navigate to a job application page"""
+        try:
+            self.current_application_id = application_id
+            self.current_url = job_url
+            
+            print(f"🌐 Navigating to: {job_url}")
+            self.driver.get(job_url)
+            
+            # Wait for page load
+            await asyncio.sleep(random.uniform(2, 4))
+            
+            # Handle common popups
+            await self._handle_common_popups()
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ Navigation error: {e}")
+            return False
+    
+    async def _handle_common_popups(self):
+        """Handle common popups and overlays"""
+        try:
+            # Cookie banners
+            cookie_selectors = [
+                "[id*='cookie'] button[id*='accept']",
+                "[class*='cookie'] button[class*='accept']",
+                "button[id*='accept-cookie']",
+                "button[class*='accept-cookie']"
+            ]
+            
+            for selector in cookie_selectors:
+                try:
+                    elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                    for element in elements:
+                        if element.is_displayed() and element.is_enabled():
+                            element.click()
+                            print("🍪 Accepted cookies")
+                            await asyncio.sleep(1)
+                            break
+                except:
+                    continue
+                    
+        except Exception as e:
+            print(f"⚠️ Popup handling error: {e}")
+    
+    async def check_for_captcha(self) -> Optional[Dict[str, Any]]:
+        """Enhanced CAPTCHA detection with solved state recognition"""
+        try:
+            print("🔍 Checking for CAPTCHA...")
+            
+            # First check if CAPTCHA is already solved by looking for success indicators
+            solved_indicators = [
+                '.recaptcha-checkbox-checked',           # Checked checkbox
+                '[aria-checked="true"]',                 # ARIA checked state
+                '.g-recaptcha-response[value!=""]',      # Non-empty response
+                'input[name="g-recaptcha-response"][value!=""]'  # Response token present
+            ]
+            
+            for indicator in solved_indicators:
+                try:
+                    elements = self.driver.find_elements(By.CSS_SELECTOR, indicator)
+                    if elements:
+                        print(f"✅ CAPTCHA solved indicator found: {indicator}")
+                        return None  # CAPTCHA is solved
+                except:
+                    continue
+            
+            # Check for solved state by examining the reCAPTCHA response token
+            try:
+                response_element = self.driver.find_element(By.CSS_SELECTOR, '[name="g-recaptcha-response"]')
+                response_value = response_element.get_attribute('value')
+                if response_value and len(response_value) > 10:
+                    print(f"✅ CAPTCHA response token found (length: {len(response_value)})")
+                    return None  # CAPTCHA is solved
+            except:
+                pass
+            
+            # Check if the reCAPTCHA iframe shows success state
+            try:
+                # Switch to reCAPTCHA iframe and check for success
+                iframe = self.driver.find_element(By.CSS_SELECTOR, 'iframe[src*="recaptcha"]')
+                self.driver.switch_to.frame(iframe)
+                
+                # Look for success indicators inside iframe
+                success_elements = self.driver.find_elements(By.CSS_SELECTOR, 
+                    '.recaptcha-checkbox-checked, [aria-checked="true"]')
+                
+                # Switch back to main content
+                self.driver.switch_to.default_content()
+                
+                if success_elements:
+                    print("✅ CAPTCHA success state detected in iframe")
+                    return None  # CAPTCHA is solved
+                    
+            except Exception as iframe_error:
+                # Switch back to main content in case of error
+                try:
+                    self.driver.switch_to.default_content()
+                except:
+                    pass
+                print(f"⚠️ Iframe check failed: {iframe_error}")
+            
+            # If we get here, check if CAPTCHA is still blocking the form
+            captcha_selectors = [
+                'iframe[src*="recaptcha"]',
+                '.g-recaptcha',
+                '[class*="captcha"]',
+                '#recaptcha'
+            ]
+            
+            captcha_found = False
+            for selector in captcha_selectors:
+                try:
+                    elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                    for element in elements:
+                        if element.is_displayed():
+                            # Check if this CAPTCHA element is actually blocking
+                            # by looking at its size and position
+                            size = element.size
+                            if size['width'] > 50 and size['height'] > 50:
+                                captcha_found = True
+                                print(f"🚨 Active CAPTCHA detected: {selector} (size: {size})")
+                                break
+                    if captcha_found:
+                        break
+                except:
+                    continue
+            
+            if captcha_found:
+                # Take screenshot only if CAPTCHA is actually blocking
+                screenshot_url = await self._take_captcha_screenshot()
+                
+                captcha_info = {
+                    'type': 'recaptcha',
+                    'element': element,
+                    'screenshot_url': screenshot_url,
+                    'page_url': self.driver.current_url,
+                    'selector': selector,
+                    'detected_at': datetime.utcnow().isoformat()
+                }
+                
+                print(f"🚨 CAPTCHA blocking form: {selector}")
+                return captcha_info
+            else:
+                print("✅ No blocking CAPTCHA detected")
+                return None
+            
+        except Exception as e:
+            print(f"❌ CAPTCHA check error: {e}")
+            return None
+    
+    async def _take_captcha_screenshot(self) -> str:
+        """Take a screenshot for CAPTCHA solving"""
+        try:
+            # Create screenshots directory if it doesn't exist
+            screenshot_dir = os.path.join(os.getcwd(), 'captcha_screenshots')
+            os.makedirs(screenshot_dir, exist_ok=True)
+            
+            # Generate filename
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            filename = f"captcha_{self.session_id[:8]}_{timestamp}.png"
+            filepath = os.path.join(screenshot_dir, filename)
+            
+            # Take screenshot
+            self.driver.save_screenshot(filepath)
+            print(f"📸 CAPTCHA screenshot saved: {filepath}")
+            
+            return filepath
+            
+        except Exception as e:
+            print(f"❌ Screenshot error: {e}")
+            return None
+    
+    async def scan_form_elements(self, skip_captcha_check: bool = False) -> List[Dict[str, Any]]:
+        """Scan and analyze form elements on the page"""
+        try:
+            # Only check for CAPTCHA if not explicitly skipped
+            if not skip_captcha_check:
+                captcha_info = await self.check_for_captcha()
+                if captcha_info:
+                    print("🚨 CAPTCHA detected - returning CAPTCHA info instead of form fields")
+                    # Return special marker for CAPTCHA
+                    return [{'__captcha_detected__': True, 'captcha_info': captcha_info}]
+            
+            # Scroll to ensure all elements are loaded
+            await self._scroll_to_bottom()
+            
+            form_fields = []
+            
+            # Find all input elements
+            inputs = self.driver.find_elements(By.CSS_SELECTOR, "input, textarea, select")
+            
+            # Group radio buttons and checkboxes
+            choice_groups = {}
+            
+            for element in inputs:
+                if not element.is_displayed():
+                    continue
+                
+                field_type = element.get_attribute('type')
+                
+                if field_type in ['radio', 'checkbox']:
+                    name = element.get_attribute('name')
+                    if name:
+                        if name not in choice_groups:
+                            question_label = await self._find_question_for_choice(element)
+                            choice_groups[name] = {
+                                'label': question_label or f"Choice group: {name}",
+                                'type': field_type,
+                                'elements': [],
+                                'required': element.get_attribute('required') is not None
+                            }
+                        choice_groups[name]['elements'].append(element)
+                else:
+                    field_data = await self._analyze_field(element)
+                    if field_data:
+                        form_fields.append(field_data)
+            
+            # Add choice groups
+            form_fields.extend(choice_groups.values())
+            
+            print(f"📋 Found {len(form_fields)} form fields")
+            return form_fields
+            
+        except Exception as e:
+            print(f"❌ Form scanning error: {e}")
+            return []
+    
+    async def _scroll_to_bottom(self):
+        """Scroll to bottom to load all elements"""
+        try:
+            # Gradual scroll to mimic human behavior
+            total_height = self.driver.execute_script("return document.body.scrollHeight")
+            current_position = 0
+            
+            while current_position < total_height:
+                # Scroll in increments
+                scroll_increment = random.randint(300, 600)
+                current_position += scroll_increment
+                
+                self.driver.execute_script(f"window.scrollTo(0, {current_position});")
+                await asyncio.sleep(random.uniform(0.5, 1.5))
+                
+                # Check if new content loaded
+                new_height = self.driver.execute_script("return document.body.scrollHeight")
+                if new_height > total_height:
+                    total_height = new_height
+            
+            # Scroll back to top
+            self.driver.execute_script("window.scrollTo(0, 0);")
+            await asyncio.sleep(1)
+            
+        except Exception as e:
+            print(f"⚠️ Scroll error: {e}")
+    
+    async def _find_question_for_choice(self, element) -> Optional[str]:
+        """Find the question text for a choice element"""
+        # Implementation same as before
+        return None
+    
+    async def _analyze_field(self, element) -> Optional[Dict[str, Any]]:
+        """Analyze a single form field"""
+        # Implementation same as before
+        return None
+    
+    async def _get_field_label(self, element) -> Optional[str]:
+        """Get the label for a form field"""
+        # Implementation same as before
+        return None
+    
+    def get_session_stats(self) -> Dict[str, Any]:
+        """Get session statistics"""
+        self.session_stats['session_duration'] = (datetime.utcnow() - self.session_stats['session_start']).total_seconds()
+        return self.session_stats.copy()
+    
+    
+    async def _find_question_for_choice(self, element) -> Optional[str]:
+        """Find the question text for a choice element"""
+        try:
+            # Look for nearby label text
+            element_id = element.get_attribute('id')
+            if element_id:
+                label = self.driver.find_elements(By.CSS_SELECTOR, f'label[for="{element_id}"]')
+                if label and label[0].is_displayed():
+                    return label[0].text.strip()
+            
+            # Look for parent fieldset legend
+            parent = element
+            for _ in range(5):  # Look up 5 levels
+                try:
+                    parent = parent.find_element(By.XPATH, './..')
+                    legend = parent.find_elements(By.CSS_SELECTOR, 'legend')
+                    if legend:
+                        return legend[0].text.strip()
+                except:
+                    break
+            
+            return None
+        except Exception as e:
+            return None
+    
+    async def _analyze_field(self, element) -> Optional[Dict[str, Any]]:
+        """Analyze a single form field"""
+        try:
+            field_type = element.get_attribute('type') or 'text'
+            field_name = element.get_attribute('name') or element.get_attribute('id') or ''
+            
+            # Skip hidden fields and buttons
+            if field_type in ['hidden', 'submit', 'button', 'image']:
+                return None
+            
+            label = await self._get_field_label(element)
+            placeholder = element.get_attribute('placeholder') or ''
+            required = element.get_attribute('required') is not None
+            
+            return {
+                'element': element,
+                'type': field_type,
+                'name': field_name,
+                'label': label,
+                'placeholder': placeholder,
+                'required': required,
+                'current_value': element.get_attribute('value') or ''
+            }
+        except Exception as e:
+            return None
+    
+    async def _get_field_label(self, element) -> Optional[str]:
+        """Get the label for a form field"""
+        try:
+            # Method 1: Look for label with for attribute
+            element_id = element.get_attribute('id')
+            if element_id:
+                labels = self.driver.find_elements(By.CSS_SELECTOR, f'label[for="{element_id}"]')
+                if labels and labels[0].is_displayed():
+                    return labels[0].text.strip()
+            
+            # Method 2: Look for parent label
+            try:
+                parent_label = element.find_element(By.XPATH, './ancestor::label[1]')
+                if parent_label.is_displayed():
+                    return parent_label.text.strip()
+            except:
+                pass
+            
+            # Method 3: Look for nearby text
+            placeholder = element.get_attribute('placeholder')
+            if placeholder:
+                return placeholder.strip()
+            
+            # Method 4: Look for aria-label
+            aria_label = element.get_attribute('aria-label')
+            if aria_label:
+                return aria_label.strip()
+            
+            return None
+        except Exception as e:
+            return None
+    
+    async def wait_for_captcha_solution(self, captcha_info: Dict[str, Any], timeout: int = 300) -> bool:
+        """Wait for manual CAPTCHA solution"""
+        try:
+            print(f"⏳ Waiting for CAPTCHA to be solved manually...")
+            print(f"   Screenshot: {captcha_info.get('screenshot_url', 'N/A')}")
+            print(f"   Please solve the CAPTCHA in the browser window")
+            print(f"   Waiting up to {timeout} seconds...")
+            
+            start_time = time.time()
+            
+            while time.time() - start_time < timeout:
+                # Check if CAPTCHA is still present
+                current_captcha = await self.check_for_captcha()
+                
+                if not current_captcha:
+                    print("✅ CAPTCHA appears to be solved!")
+                    await asyncio.sleep(2)  # Wait a bit more for page to update
+                    return True
+                
+                # Wait and check again
+                await asyncio.sleep(5)
+                print(f"⏳ Still waiting for CAPTCHA solution... ({int(time.time() - start_time)}s elapsed)")
+            
+            print("⏰ Timeout waiting for CAPTCHA solution")
+            return False
+            
+        except Exception as e:
+            print(f"❌ Error waiting for CAPTCHA solution: {e}")
+            return False
+    
+    async def submit_application(self) -> Dict[str, Any]:
+        """Submit the job application"""
+        try:
+            print("🚀 Attempting to submit application...")
+            
+            # Look for submit buttons
+            submit_selectors = [
+                'input[type="submit"]',
+                'button[type="submit"]', 
+                'button[class*="submit"]',
+                'button[id*="submit"]',
+                'input[value*="Submit"]',
+                'button:contains("Submit")',
+                'button:contains("Apply")',
+                'button:contains("Send")'
+            ]
+            
+            submit_button = None
+            
+            for selector in submit_selectors:
+                try:
+                    buttons = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                    for button in buttons:
+                        if button.is_displayed() and button.is_enabled():
+                            submit_button = button
+                            break
+                    
+                    if submit_button:
+                        break
+                except:
+                    continue
+            
+            if submit_button:
+                # Scroll to submit button
+                self.driver.execute_script("arguments[0].scrollIntoView(true);", submit_button)
+                await asyncio.sleep(1)
+                
+                # Click submit
+                submit_button.click()
+                print("✅ Submit button clicked")
+                
+                # Wait for submission
+                await asyncio.sleep(3)
+                
+                # Check for success indicators
+                success_indicators = [
+                    'thank you',
+                    'success',
+                    'submitted',
+                    'received',
+                    'confirmation'
+                ]
+                
+                page_text = self.driver.page_source.lower()
+                
+                for indicator in success_indicators:
+                    if indicator in page_text:
+                        return {
+                            'success': True,
+                            'message': f'Application submitted successfully (detected: {indicator})',
+                            'final_url': self.driver.current_url
+                        }
+                
+                # If no success indicator, assume success if no error
+                return {
+                    'success': True,
+                    'message': 'Application submitted (no error detected)',
+                    'final_url': self.driver.current_url
+                }
+                
+            else:
+                return {
+                    'success': False,
+                    'error': 'No submit button found'
+                }
+                
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Submission error: {str(e)}'
+            }
+    def close(self):
+        """Close the browser and cleanup"""
+        try:
+            if self.driver:
+                self.driver.quit()
+                print(f"🔒 Browser session {self.session_id[:8]} closed")
+        except Exception as e:
+            print(f"⚠️ Error closing browser: {e}")
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()

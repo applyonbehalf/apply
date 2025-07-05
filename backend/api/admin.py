@@ -35,10 +35,10 @@ class JobUrlCreate(BaseModel):
 class JobUrlResponse(BaseModel):
     id: str
     category_id: str
-    category_name: str
+    category_name: Optional[str] = None  # Make optional to handle DB inconsistencies
     job_url: str
-    job_title: Optional[str]
-    company_name: Optional[str]
+    job_title: Optional[str] = None
+    company_name: Optional[str] = None
     status: str
     created_at: str
 
@@ -102,7 +102,15 @@ async def get_job_urls(
     """Get job URLs, optionally filtered by category or status"""
     try:
         job_urls = await db.get_job_urls(category_id=category_id, status=status)
-        return [JobUrlResponse(**url) for url in job_urls]
+        validated_urls = []
+        for url in job_urls:
+            try:
+                validated_url = JobUrlResponse(**url)
+                validated_urls.append(validated_url)
+            except Exception as validation_error:
+                print(f"⚠️ Skipping invalid URL record: {validation_error}")
+                continue
+        return validated_urls
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get job URLs: {str(e)}")
 
@@ -154,43 +162,67 @@ async def add_job_urls(
 async def trigger_auto_applications(category_id: str, job_urls: List[str]) -> int:
     """Automatically create applications for users interested in this job category"""
     try:
+        print(f'🔍 Looking for users interested in category: {category_id}')
+        
         # Find users who want jobs in this category
         interested_users = await db.get_users_by_job_category(category_id)
+        print(f'📋 Found {len(interested_users)} interested users')
+        
+        if not interested_users:
+            print('⚠️ No users found with this job category preference')
+            return 0
         
         applications_created = 0
         
         for user in interested_users:
-            # Get user's default profile
-            default_profile = await db.get_user_default_profile(user['user_id'])
+            user_id = user.get('user_id')
+            profile_id = user.get('profile_id')
             
-            if not default_profile:
-                print(f"⚠️ User {user['user_id']} has no default profile, skipping")
+            print(f'👤 Processing user: {user_id}')
+            print(f'   Email: {user.get("email", "Unknown")}')
+            print(f'   Profile: {user.get("profile_name", "Unknown")}')
+            print(f'   Profile ID from query: {profile_id}')
+            
+            # Validate we have a profile_id
+            if not profile_id:
+                print(f'⚠️ No profile_id found for user {user_id}, skipping')
                 continue
             
             # Create applications for each URL
             for job_url in job_urls:
+                print(f'🎯 Creating application for: {job_url}')
+                
                 app_data = {
-                    "id": str(uuid.uuid4()),
-                    "user_id": user['user_id'],
-                    "profile_id": default_profile['id'],
-                    "job_url": job_url,
-                    "status": "queued",
-                    "priority": 1,  # Higher priority for admin-added jobs
-                    "created_by": "admin_auto"
+                    'id': str(uuid.uuid4()),
+                    'user_id': user_id,
+                    'profile_id': profile_id,  # Use profile_id directly
+                    'job_url': job_url,
+                    'status': 'queued',
+                    'priority': 1,  # Higher priority for admin-added jobs
                 }
                 
-                created_app = await db.create_application(app_data)
-                if created_app:
-                    applications_created += 1
-                    print(f"✅ Created application for user {user['user_id'][:8]}... → {job_url}")
+                print(f'📝 Application data: {app_data}')
+                
+                try:
+                    created_app = await db.create_application(app_data)
+                    if created_app:
+                        applications_created += 1
+                        print(f'✅ Created application for user {user_id[:8]}... → {job_url}')
+                    else:
+                        print(f'❌ create_application returned None for user {user_id}')
+                except Exception as app_error:
+                    print(f'❌ Error creating application: {app_error}')
+                    import traceback
+                    traceback.print_exc()
         
-        print(f"🎯 Auto-created {applications_created} applications for {len(interested_users)} users")
+        print(f'🎯 Auto-created {applications_created} applications for {len(interested_users)} users')
         return applications_created
         
     except Exception as e:
-        print(f"❌ Error in auto-application creation: {e}")
+        print(f'❌ Error in auto-application creation: {e}')
+        import traceback
+        traceback.print_exc()
         return 0
-
 # Bulk operations
 @router.post("/bulk-applications")
 async def create_bulk_applications(
@@ -216,7 +248,11 @@ async def get_admin_stats(admin_user: UserResponse = Depends(require_admin_acces
     """Get admin dashboard statistics"""
     try:
         stats = await db.get_admin_stats()
-        return APIResponse(success=True, data=stats)
+        return {
+            "success": True,
+            "message": "Admin stats retrieved successfully",
+            "data": stats
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get admin stats: {str(e)}")
 
@@ -229,7 +265,11 @@ async def get_all_users(
     """Get all users, optionally filtered by job category preference"""
     try:
         users = await db.get_all_users(category_id=category_id)
-        return APIResponse(success=True, data=users)
+        return {
+            "success": True,
+            "message": f"Found {len(users)} users",
+            "data": users
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get users: {str(e)}")
 

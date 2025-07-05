@@ -359,263 +359,110 @@ class EnhancedBrowserHandler:
             print(f"❌ Error filling field '{field_label}': {e}")
             return False
     
-    
     async def find_submit_button(self) -> bool:
-        """Enhanced submit button detection with click interception handling"""
+        """Find and click the submit button with better detection"""
         try:
             print("🔍 Looking for submit button...")
             
-            submit_button = None
-            
-            # Method 1: Direct CSS selectors (avoiding :contains which doesn't work)
-            direct_selectors = [
+            # Enhanced submit button selectors
+            submit_selectors = [
+                # Direct submit buttons
                 'button[type="submit"]',
                 'input[type="submit"]',
-                '.resumator-external-apply-button',
+                
+                # Buttons with submit-related text
+                'button:contains("SUBMIT")',
+                'button:contains("Submit")',
+                'button:contains("APPLY")',
+                'button:contains("Apply")',
+                'button:contains("Send")',
+                'button:contains("Continue")',
+                
+                # Elements with submit-related classes
                 '*[class*="submit"]',
                 '*[class*="apply"]',
+                '*[class*="send"]',
+                
+                # Buttons with submit-related IDs
                 '*[id*="submit"]',
-                '*[id*="apply"]'
+                '*[id*="apply"]',
+                
+                # Any button that might be a submit
+                'button',
+                'input[type="button"]'
             ]
             
-            for selector in direct_selectors:
+            submit_button = None
+            
+            for selector in submit_selectors:
                 try:
                     buttons = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                    
                     for button in buttons:
-                        if button.is_displayed() and button.is_enabled():
-                            button_text = button.text.strip()
-                            button_class = button.get_attribute('class') or ''
-                            print(f"✅ Found submit button: '{button_text}' (class: {button_class})")
+                        if not button.is_displayed() or not button.is_enabled():
+                            continue
+                        
+                        # Check button text
+                        button_text = button.text.strip().lower()
+                        button_value = (button.get_attribute('value') or '').strip().lower()
+                        button_class = (button.get_attribute('class') or '').strip().lower()
+                        button_id = (button.get_attribute('id') or '').strip().lower()
+                        
+                        # Submit keywords
+                        submit_keywords = ['submit', 'apply', 'send', 'continue', 'next']
+                        
+                        # Check if this looks like a submit button
+                        is_submit = (
+                            any(keyword in button_text for keyword in submit_keywords) or
+                            any(keyword in button_value for keyword in submit_keywords) or
+                            any(keyword in button_class for keyword in submit_keywords) or
+                            any(keyword in button_id for keyword in submit_keywords) or
+                            button.get_attribute('type') == 'submit'
+                        )
+                        
+                        if is_submit:
                             submit_button = button
+                            print(f"✅ Found submit button: '{button_text or button_value}' (class: {button_class})")
                             break
+                    
                     if submit_button:
                         break
+                        
                 except Exception as e:
                     print(f"⚠️ Error with selector {selector}: {e}")
                     continue
             
-            # Method 2: XPath text-based search if CSS failed
-            if not submit_button:
-                print("🔍 Trying XPath text-based search...")
-                
-                xpath_patterns = [
-                    "//button[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'submit')]",
-                    "//button[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'apply')]",
-                    "//div[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'apply')]",
-                    "//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'submit')]",
-                    "//*[contains(@class, 'resumator-external-apply-button')]",
-                    "//*[contains(@class, 'indeed-apply')]"
-                ]
-                
-                for xpath in xpath_patterns:
-                    try:
-                        elements = self.driver.find_elements(By.XPATH, xpath)
-                        for element in elements:
-                            if element.is_displayed() and element.is_enabled():
-                                element_text = element.text.strip() or element.get_attribute('value') or 'No text'
-                                print(f"✅ Found submit element via XPath: '{element_text}' (tag: {element.tag_name})")
-                                submit_button = element
-                                break
-                        if submit_button:
-                            break
-                    except Exception as e:
-                        print(f"⚠️ Error with XPath {xpath}: {e}")
-                        continue
-            
-            # Method 3: Try clicking the submit button with multiple strategies
             if submit_button:
-                return await self._click_submit_button_with_fallbacks(submit_button)
+                # Scroll to submit button
+                self.driver.execute_script("arguments[0].scrollIntoView(true);", submit_button)
+                await asyncio.sleep(1)
+                
+                # Click submit button
+                submit_button.click()
+                print("✅ Submit button clicked!")
+                
+                # Wait for submission to process
+                await asyncio.sleep(3)
+                
+                return True
             else:
                 print("❌ No submit button found")
-                await self._debug_available_buttons()
+                
+                # Debug: Show all buttons on page
+                all_buttons = self.driver.find_elements(By.CSS_SELECTOR, 'button, input[type="submit"], input[type="button"]')
+                print(f"🔍 Found {len(all_buttons)} total buttons on page:")
+                
+                for i, btn in enumerate(all_buttons[:10]):  # Show first 10
+                    if btn.is_displayed():
+                        text = btn.text.strip() or btn.get_attribute('value') or 'No text'
+                        btn_class = btn.get_attribute('class') or 'No class'
+                        print(f"   {i+1}. '{text}' (class: {btn_class})")
+                
                 return False
                 
         except Exception as e:
-            print(f"❌ Error in submit button detection: {e}")
+            print(f"❌ Error finding submit button: {e}")
             return False
-    
-    async def _click_submit_button_with_fallbacks(self, submit_button) -> bool:
-        """Try multiple strategies to click the submit button"""
-        try:
-            print(f"🎯 Attempting to click submit button: '{submit_button.text}'")
-            
-            # Strategy 1: Remove overlaying elements first
-            print("🧹 Removing potential overlay elements...")
-            self.driver.execute_script("""
-                // Remove Indeed widget overlay that's blocking clicks
-                var indeedWidget = document.getElementById('resumator-indeed-apply-widget');
-                if (indeedWidget) {
-                    indeedWidget.style.display = 'none';
-                    console.log('Removed Indeed widget overlay');
-                }
-                
-                // Remove other potential overlays
-                var overlays = document.querySelectorAll('[style*="position: fixed"], [style*="z-index"]');
-                overlays.forEach(function(overlay) {
-                    if (overlay.style.zIndex > 1000) {
-                        overlay.style.display = 'none';
-                    }
-                });
-                
-                // Remove any modal backdrops
-                var modals = document.querySelectorAll('.modal-backdrop, .overlay, [class*="overlay"]');
-                modals.forEach(function(modal) {
-                    modal.style.display = 'none';
-                });
-            """)
-            
-            await asyncio.sleep(1)
-            
-            # Strategy 2: Scroll to submit button and ensure it's in view
-            print("📍 Scrolling to submit button...")
-            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", submit_button)
-            await asyncio.sleep(2)
-            
-            # Strategy 3: Try normal click first
-            try:
-                print("🖱️ Attempting normal click...")
-                submit_button.click()
-                print("✅ Normal click successful!")
-                await asyncio.sleep(3)
-                return True
-                
-            except Exception as click_error:
-                print(f"⚠️ Normal click failed: {click_error}")
-                
-                # Strategy 4: JavaScript click
-                try:
-                    print("🖱️ Attempting JavaScript click...")
-                    self.driver.execute_script("arguments[0].click();", submit_button)
-                    print("✅ JavaScript click successful!")
-                    await asyncio.sleep(3)
-                    return True
-                    
-                except Exception as js_error:
-                    print(f"⚠️ JavaScript click failed: {js_error}")
-                    
-                    # Strategy 5: Force click with coordinates
-                    try:
-                        print("🖱️ Attempting ActionChains click...")
-                        from selenium.webdriver.common.action_chains import ActionChains
-                        actions = ActionChains(self.driver)
-                        actions.move_to_element(submit_button).click().perform()
-                        print("✅ ActionChains click successful!")
-                        await asyncio.sleep(3)
-                        return True
-                        
-                    except Exception as action_error:
-                        print(f"⚠️ ActionChains click failed: {action_error}")
-                        
-                        # Strategy 6: Submit form directly if button is in a form
-                        try:
-                            print("📋 Attempting form submission...")
-                            form = submit_button.find_element(By.XPATH, "./ancestor::form[1]")
-                            self.driver.execute_script("arguments[0].submit();", form)
-                            print("✅ Form submission successful!")
-                            await asyncio.sleep(3)
-                            return True
-                            
-                        except Exception as form_error:
-                            print(f"⚠️ Form submission failed: {form_error}")
-                            
-                            # Strategy 7: Try clicking parent elements
-                            try:
-                                print("🖱️ Attempting to click parent element...")
-                                parent = submit_button.find_element(By.XPATH, "./..")
-                                self.driver.execute_script("arguments[0].click();", parent)
-                                print("✅ Parent element click successful!")
-                                await asyncio.sleep(3)
-                                return True
-                                
-                            except Exception as parent_error:
-                                print(f"❌ All click strategies failed: {parent_error}")
-                                return False
-                    
-        except Exception as e:
-            print(f"❌ Error in click strategies: {e}")
-            return False
-    
-    async def _debug_available_buttons(self):
-        """Debug helper to show all available buttons on the page"""
-        try:
-            print("🔍 DEBUG: Available buttons on page:")
-            all_buttons = self.driver.find_elements(By.CSS_SELECTOR, 'button, input[type="button"], input[type="submit"], a[role="button"], div[role="button"], *[onclick]')
-            
-            visible_buttons = []
-            for btn in all_buttons:
-                try:
-                    if btn.is_displayed():
-                        text = btn.text.strip() or btn.get_attribute('value') or btn.get_attribute('aria-label') or 'No text'
-                        btn_class = btn.get_attribute('class') or 'No class'
-                        btn_id = btn.get_attribute('id') or 'No ID'
-                        tag = btn.tag_name
-                        visible_buttons.append(f"   {tag}: '{text[:50]}' (class: {btn_class[:50]}, id: {btn_id[:30]})")
-                except:
-                    continue
-            
-            print(f"   Found {len(visible_buttons)} visible clickable elements:")
-            for i, btn_info in enumerate(visible_buttons[:20]):  # Show first 20
-                print(f"   {i+1}. {btn_info}")
-                
-        except Exception as e:
-            print(f"   ❌ Debug error: {e}")
-
-    
-    async def get_user_profile_data(self, user_id: str, profile_id: str = None) -> Dict[str, Any]:
-        """Fetch user profile data from database instead of file"""
-        try:
-            from database.connection import db
-            
-            print(f"📋 Fetching profile data for user: {user_id}")
-            
-            if profile_id:
-                # Get specific profile
-                profile = await db.get_profile_by_id(profile_id)
-            else:
-                # Get user's default profile
-                profile = await db.get_user_default_profile(user_id)
-            
-            if profile and profile.get('profile_data'):
-                profile_data = profile['profile_data']
-                print(f"✅ Loaded profile: {profile.get('profile_name', 'Default')}")
-                print(f"   User name: {profile_data.get('personal_info', {}).get('full_name', 'Unknown')}")
-                print(f"   Email: {profile_data.get('personal_info', {}).get('email', 'Unknown')}")
-                return profile_data
-            else:
-                print(f"⚠️ No profile found for user {user_id}, using default data")
-                return self._get_default_profile_data()
-                
-        except Exception as e:
-            print(f"❌ Error fetching profile data: {e}")
-            return self._get_default_profile_data()
-    
-    def _get_default_profile_data(self) -> Dict[str, Any]:
-        """Fallback default profile data"""
-        return {
-            "personal_info": {
-                "legal_first_name": "Job",
-                "legal_last_name": "Applicant",
-                "full_name": "Job Applicant",
-                "email": "applicant@example.com",
-                "phone": "+1-555-000-0000",
-                "address_line_1": "123 Main Street",
-                "city": "Any City",
-                "state_province": "CA",
-                "zip_postal_code": "90210"
-            },
-            "experience": {
-                "total_years_professional_experience": "3-5 years",
-                "salary_expectation": "$70,000 - $90,000"
-            },
-            "preferences": {
-                "work_preference": "Hybrid"
-            },
-            "eligibility": {
-                "work_authorization": "authorized",
-                "visa_sponsorship_required": False,
-                "visa_sponsorship": "No"
-            }
-        }
 
     def close(self):
         """Close the browser"""
