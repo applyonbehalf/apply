@@ -1,0 +1,203 @@
+# bot/qa_system.py - SIMPLE WORKING VERSION
+from typing import Dict, Optional, Any, Tuple
+import json
+
+class QASystem:
+    """Simple Q&A System that works immediately"""
+    
+    def __init__(self):
+        self.cache = {}
+        print("🧠 Simple Q&A System initialized")
+    
+    async def get_field_answer_hierarchical(self, field_label: str, field_type: str, 
+                                           site_domain: str, profile_data: Dict[str, Any], 
+                                           user_id: str) -> Tuple[Optional[str], str]:
+        """Main method that application processor calls"""
+        
+        print(f"🔍 Q&A Lookup: {field_label} ({field_type})")
+        
+        # Level 1: Profile data lookup
+        answer = self._get_profile_answer(field_label, profile_data)
+        if answer:
+            print(f"✅ Level 1 (Profile): {field_label} → {answer}")
+            return answer, "profile_direct"
+        
+        # Level 2: Smart pattern matching
+        answer = self._get_smart_answer(field_label, field_type, profile_data)
+        if answer:
+            print(f"✅ Level 2 (Smart): {field_label} → {answer}")
+            return answer, "smart_pattern"
+        
+        # Level 3: Default values
+        answer = self._get_default_answer(field_label, field_type)
+        if answer:
+            print(f"✅ Level 3 (Default): {field_label} → {answer}")
+            return answer, "default_value"
+        
+        print(f"❌ No answer found for: {field_label}")
+        return None, "no_answer"
+    
+    def _get_profile_answer(self, field_label: str, profile_data: Dict[str, Any]) -> Optional[str]:
+        """Get answer from profile data"""
+        
+        try:
+            # Parse nested profile data
+            profile_json = profile_data.get('profile_data', {})
+            if isinstance(profile_json, str):
+                profile_json = json.loads(profile_json)
+            
+            personal_info = profile_json.get('personal_info', {})
+            
+            # Normalize field label
+            field_lower = field_label.lower().replace('-', '').replace('_', '')
+            
+            # Direct mappings
+            mappings = {
+                # First name variations
+                'resumatorfirstnamevalue': personal_info.get('legal_first_name'),
+                'firstname': personal_info.get('legal_first_name'),
+                'first': personal_info.get('legal_first_name'),
+                'fname': personal_info.get('legal_first_name'),
+                
+                # Last name variations  
+                'resumatorlastnamevalue': personal_info.get('legal_last_name'),
+                'lastname': personal_info.get('legal_last_name'),
+                'last': personal_info.get('legal_last_name'),
+                'lname': personal_info.get('legal_last_name'),
+                
+                # Email variations
+                'resumatoremailvalue': personal_info.get('email'),
+                'email': personal_info.get('email'),
+                'emailaddress': personal_info.get('email'),
+                
+                # Phone variations
+                'resumatorphonevalue': personal_info.get('phone'),
+                'phone': personal_info.get('phone'),
+                'phonenumber': personal_info.get('phone'),
+                'telephone': personal_info.get('phone'),
+                
+                # Address variations
+                'address': personal_info.get('address_line_1'),
+                'streetaddress': personal_info.get('address_line_1'),
+                'street': personal_info.get('address_line_1'),
+                
+                # City variations
+                'city': personal_info.get('city'),
+                'town': personal_info.get('city'),
+                
+                # State variations
+                'state': personal_info.get('state_province'),
+                'stateprovince': personal_info.get('state_province'),
+                'province': personal_info.get('state_province'),
+                
+                # Postal variations
+                'postal': personal_info.get('zip_postal_code'),
+                'zip': personal_info.get('zip_postal_code'),
+                'zipcode': personal_info.get('zip_postal_code'),
+                'postalcode': personal_info.get('zip_postal_code'),
+            }
+            
+            # Check exact match
+            if field_lower in mappings:
+                value = mappings[field_lower]
+                if value and str(value).strip():
+                    return str(value).strip()
+            
+            # Check partial matches
+            for key, value in mappings.items():
+                if key in field_lower or field_lower in key:
+                    if value and str(value).strip():
+                        return str(value).strip()
+            
+            return None
+            
+        except Exception as e:
+            print(f"⚠️ Profile parsing error: {e}")
+            return None
+    
+    def _get_smart_answer(self, field_label: str, field_type: str, profile_data: Dict[str, Any]) -> Optional[str]:
+        """Smart pattern-based answers"""
+        
+        field_lower = field_label.lower()
+        
+        # Work authorization patterns
+        if any(word in field_lower for word in ['authorization', 'sponsor', 'visa', 'eligible']):
+            if 'sponsor' in field_lower:
+                return 'No'
+            else:
+                return 'Yes'
+        
+        # Experience patterns
+        if 'experience' in field_lower:
+            if any(word in field_lower for word in ['security', 'cyber']):
+                return '2-3 years'
+            elif any(word in field_lower for word in ['it', 'tech']):
+                return '3-5 years'
+            else:
+                return '2+ years'
+        
+        # Salary patterns
+        if any(word in field_lower for word in ['salary', 'compensation', 'pay']):
+            return '$80,000 - $100,000'
+        
+        # Work preference patterns
+        if any(word in field_lower for word in ['remote', 'work type', 'location']):
+            return 'Hybrid'
+        
+        # Common yes/no questions
+        if field_type in ['select-one', 'checkbox']:
+            if any(word in field_lower for word in ['agree', 'consent', 'understand']):
+                return 'Yes'
+            elif any(word in field_lower for word in ['background', 'check', 'drug', 'test']):
+                return 'Yes'
+        
+        # Text area responses
+        if field_type == 'textarea':
+            if any(word in field_lower for word in ['why', 'interest', 'motivation']):
+                return "I am excited about this cybersecurity opportunity and believe my skills align well with the role requirements."
+            elif any(word in field_lower for word in ['experience', 'background', 'qualifications']):
+                return "I have 3+ years of IT experience with a focus on cybersecurity. Please see my resume for detailed qualifications."
+            else:
+                return "Please see my resume for additional details about my background and qualifications."
+        
+        return None
+    
+    def _get_default_answer(self, field_label: str, field_type: str) -> Optional[str]:
+        """Default fallback answers"""
+        
+        # Type-based defaults
+        if field_type == 'checkbox':
+            return True
+        elif field_type == 'select-one':
+            return 'Yes'  # Safe default for most questions
+        elif field_type == 'date':
+            return 'Immediately'
+        elif field_type == 'url':
+            return 'https://linkedin.com/in/profile'
+        
+        # Common field defaults
+        field_lower = field_label.lower()
+        
+        defaults = {
+            'linkedin': 'https://linkedin.com/in/cybersecurity-professional',
+            'website': 'https://github.com/profile',
+            'portfolio': 'Available upon request',
+            'availability': 'Immediately',
+            'start': 'Immediately',
+            'notice': '2 weeks',
+            'relocate': 'Yes',
+            'travel': 'Yes',
+        }
+        
+        for keyword, value in defaults.items():
+            if keyword in field_lower:
+                return value
+        
+        return None
+    
+    def get_session_stats(self) -> Dict[str, Any]:
+        """Get session statistics"""
+        return {
+            'cache_size': len(self.cache),
+            'status': 'working'
+        }
