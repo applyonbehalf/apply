@@ -1,0 +1,22 @@
+{
+  "personal_info": {
+    "legal_first_name": "Shubham",
+    "legal_last_name": "Mane",
+    "full_name": "Shubham Mane",
+    "email": "shubhammane56@gmail.com",
+    "phone": "312-539-9755",
+    "address_line_1": "215 E Seegers Rd",
+    "city": "Chicago",
+    "state_province": "IL",
+    "zip_postal_code": "60601"
+  },
+  "experience": {
+    "total_years_professional_experience": "3-5 years",
+    "cybersecurity_experience": "2-3 years",
+    "salary_expectation": "$80,000 - $100,000"
+  },
+  "eligibility": {
+    "are_you_legally_authorized_to_work": "Yes",
+    "will_you_require_sponsorship": "No"
+  }
+}

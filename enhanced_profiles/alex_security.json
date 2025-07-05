@@ -1,0 +1,22 @@
+{
+  "personal_info": {
+    "legal_first_name": "Alex",
+    "legal_last_name": "Security",
+    "full_name": "Alex Security",
+    "email": "cybersec_user1@example.com",
+    "phone": "555-1001",
+    "address_line_1": "123 Security Lane",
+    "city": "San Francisco",
+    "state_province": "CA",
+    "zip_postal_code": "94102"
+  },
+  "experience": {
+    "total_years_professional_experience": "5-7 years",
+    "cybersecurity_experience": "4-5 years",
+    "salary_expectation": "$90,000 - $120,000"
+  },
+  "eligibility": {
+    "are_you_legally_authorized_to_work": "Yes",
+    "will_you_require_sponsorship": "No"
+  }
+}
